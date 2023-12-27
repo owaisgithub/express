@@ -25,7 +25,7 @@ const userSchema = new Schema(
             trim: true,
             index: true
         },
-        avtar: {
+        avatar: {
             type: String, // cloudinary url
             required: true,
         },
@@ -47,7 +47,7 @@ const userSchema = new Schema(
         }
     },
     {
-        timeseries: true
+        timestamps: true
     }
 )
 
