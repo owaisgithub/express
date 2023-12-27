@@ -6,27 +6,34 @@ import { User } from "../models/user.model.js";
 const verifyJwt = asyncHandler ( async (req, res, next) => {
     try {
         const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
-        console.log(token);
+
+        // console.log(token);
+
         if (!token) {
-            throw new ApiError(401, "Unauthoeized request");
+            throw new ApiError(401, "Unauthorized request");
         }
-    
+        console.log(token);
         const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
         console.log(decodedToken);
 
-        const user = await User.findById(decodedToken._id).select(
-            "-password -refreshToken"
-        );
-        console.log(user);
+        const user = await User.findById(decodedToken._id);
+        
         if (!user) {
             throw new ApiError(401, "Invalid Token");
         }
-    
+
+        if (!user.refreshToken) {
+            throw new ApiError(401, "Token has been expired or invalid");
+        }
+
+        user.password = undefined;
+        user.refreshToken = undefined;
+
         req.user = user;
-        //console.log("RequestUser", req.user);
+        console.log("RequestUser", req.user);
         next();
     } catch (error) {
-        throw new ApiError(401, "Invalid Token");
+        throw new ApiError(401, "Token invalid or expired");
     }
 });
 

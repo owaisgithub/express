@@ -99,7 +99,7 @@ const loginUser = asyncHandler( async (req, res) => {
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
-    user.save({ validateBeforeSave: false });
+    await user.save({ validateBeforeSave: false });
 
     const options = {
         httpOnly: true,
@@ -123,17 +123,10 @@ const loginUser = asyncHandler( async (req, res) => {
 })
 
 const logoutUser = asyncHandler( async (req, res) => {
-    await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                refreshToken: undefined
-            }
-        },
-        {
-            new: true
-        }
-    );
+    console.log(req.user._id);
+    const user = await User.findById(req.user._id);
+    user.refreshToken = undefined;
+    await user.save({validateBeforeSave: false});
 
     const options = {
         httpOnly: true,
@@ -149,33 +142,35 @@ const logoutUser = asyncHandler( async (req, res) => {
 })
 
 const refreshAccessToken = asyncHandler( async (req, res) => {
-    const incomingRefreshToken = req.cookies.refreshToken || req.header("Authorization");
-
+    const incomingRefreshToken = req.cookies.refreshToken || req.header("Authorization").replace("Bearer ", "");
     if (!incomingRefreshToken) {
         throw new ApiError(401, "Invalid Token");
     }
 
     try {
         const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
-    
+
         const user = await User.findById(decodedToken._id);
-    
+
         if (!user) {
             throw new ApiError(401, "Invalid Token");
         }
-    
+        
         if (incomingRefreshToken !== user.refreshToken) {
             throw new ApiError(401, "Refresh token is expired or used");
         }
-    
+        
         const options = {
             httpOnly: true,
             secure: true
         }
-    
+        
         const accessToken = user.generateAccessToken();
         const refreshToken = user.generateRefreshToken();
-    
+        user.refreshToken = refreshToken;
+
+        await user.save({validateBeforeSave: false});
+        
         return res
                 .status(200)
                 .cookie("accessToken", accessToken, options)
@@ -187,7 +182,7 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
                     )
                 );
     } catch (error) {
-        throw new ApiError(401, error?.message || "Invalid refresh token");
+        throw new ApiError(401, "Invalid refresh token");
     }
 })
 
